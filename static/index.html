@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Convoy PTT Walkie-Talkie</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            height: 100vh;
+            padding: 24px 16px;
+            overflow: hidden;
+        }
+        header {
+            width: 100%;
+            text-align: center;
+        }
+        .header-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            color: #e0e0e0;
+        }
+        .network-bar {
+            margin-top: 8px;
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            font-size: 0.85rem;
+            color: #9e9e9e;
+        }
+        .badge {
+            background: #242424;
+            padding: 4px 12px;
+            border-radius: 12px;
+            border: 1px solid #333;
+        }
+        .status-box {
+            width: 100%;
+            max-width: 340px;
+            text-align: center;
+            background: #1e1e1e;
+            padding: 18px;
+            border-radius: 16px;
+            border: 1px solid #333;
+        }
+        .status-indicator {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #00e676;
+        }
+        .status-sub {
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-top: 6px;
+        }
+
+        /* PTT Button Styling - Motor khalh paha khawih fuh awlsam tak tur */
+        .ptt-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .ptt-button {
+            width: 240px;
+            height: 240px;
+            border-radius: 50%;
+            border: 6px solid #2e2e2e;
+            background: radial-gradient(circle, #2d3238 0%, #15181b 100%);
+            color: #ffffff;
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+            touch-action: none;
+            transition: transform 0.1s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+        .ptt-button:active, .ptt-button.transmitting {
+            background: radial-gradient(circle, #d32f2f 0%, #8b0000 100%);
+            border-color: #ff5252;
+            transform: scale(0.96);
+            box-shadow: 0 0 40px rgba(255, 23, 68, 0.6);
+        }
+        .ptt-button.busy {
+            background: radial-gradient(circle, #37474f 0%, #212121 100%);
+            border-color: #ff9100;
+            color: #ff9100;
+            cursor: not-allowed;
+            pointer-events: none;
+            box-shadow: none;
+        }
+        .sub-btn-text {
+            font-size: 0.75rem;
+            font-weight: 400;
+            color: #ccc;
+            margin-top: 6px;
+        }
+
+        /* Start Modal */
+        #loginOverlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+            z-index: 100;
+        }
+        .login-card {
+            background: #1f1f1f;
+            padding: 28px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 320px;
+            text-align: center;
+            border: 1px solid #333;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 14px;
+            margin: 18px 0;
+            border-radius: 10px;
+            border: 1px solid #444;
+            background: #121212;
+            color: #fff;
+            font-size: 1rem;
+            text-align: center;
+        }
+        button.primary-btn {
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            border: none;
+            background: #00c853;
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Startup / Name Screen -->
+    <div id="loginOverlay">
+        <div class="login-card">
+            <h2>Convoy Walkie Talkie</h2>
+            <p style="color: #888; font-size: 0.85rem; margin-top: 6px;">I hming emaw Motor number dah rawh</p>
+            <input type="text" id="usernameInput" placeholder="Entir nan: Car 1 (Martin)" maxlength="20" autofocus>
+            <button class="primary-btn" id="startBtn">JOIN CHANNEL</button>
+        </div>
+    </div>
+
+    <header>
+        <div class="header-title">CONVOY RADIO</div>
+        <div class="network-bar">
+            <div class="badge" id="userCountBadge">Online: 0</div>
+            <div class="badge" id="connStatus">Connecting...</div>
+        </div>
+    </header>
+
+    <div class="status-box">
+        <div class="status-indicator" id="statusText">READY</div>
+        <div class="status-sub" id="speakerDetail">Channel a awl e</div>
+    </div>
+
+    <div class="ptt-container">
+        <button class="ptt-button" id="pttButton">
+            <span>PUSH</span>
+            <span class="sub-btn-text">HMEK RENG LA TAWNG RAWH</span>
+        </button>
+    </div>
+
+    <footer style="font-size: 0.75rem; color: #555; text-align: center;">
+        Hands-free mode: Audio auto-plays
+    </footer>
+
+    <script>
+        let ws;
+        let audioCtx;
+        let micStream;
+        let scriptProcessor;
+        let userName = "Driver";
+        let hasFloor = false;
+        let isHoldingButton = false;
+        let nextPlayTime = 0;
+
+        const pttBtn = document.getElementById("pttButton");
+        const statusText = document.getElementById("statusText");
+        const speakerDetail = document.getElementById("speakerDetail");
+        const userCountBadge = document.getElementById("userCountBadge");
+        const connStatus = document.getElementById("connStatus");
+        const loginOverlay = document.getElementById("loginOverlay");
+        const startBtn = document.getElementById("startBtn");
+        const usernameInput = document.getElementById("usernameInput");
+
+        // Keep Screen Alive (Screen Wake Lock API)
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    await navigator.wakeLock.request('screen');
+                }
+            } catch (err) {
+                console.log("WakeLock error:", err);
+            }
+        }
+
+        startBtn.addEventListener("click", async () => {
+            if (usernameInput.value.trim() !== "") {
+                userName = usernameInput.value.trim();
+            }
+            loginOverlay.style.display = "none";
+
+            // Initialize AudioContext on user interaction
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+            await requestWakeLock();
+            await setupMic();
+            connectSocket();
+        });
+
+        async function setupMic() {
+            try {
+                micStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+            } catch (err) {
+                alert("Microphone permission pek a ngai: " + err.message);
+            }
+        }
+
+        function connectSocket() {
+            const loc = window.location;
+            const wsUri = (loc.protocol === "https:" ? "wss://" : "ws://") + loc.host + "/ws";
+            ws = new WebSocket(wsUri);
+            ws.binaryType = "arraybuffer";
+
+            ws.onopen = () => {
+                connStatus.innerText = "Connected";
+                connStatus.style.color = "#00e676";
+                ws.send(JSON.stringify({ type: "join", name: userName }));
+            };
+
+            ws.onclose = () => {
+                connStatus.innerText = "Disconnected";
+                connStatus.style.color = "#ff1744";
+                setTimeout(connectSocket, 2000);
+            };
+
+            ws.onmessage = (event) => {
+                if (typeof event.data === "string") {
+                    handleTextMessage(JSON.parse(event.data));
+                } else {
+                    // Audio stream a rawn luhin play rawh
+                    playPcmAudio(event.data);
+                }
+            };
+        }
+
+        function handleTextMessage(msg) {
+            if (msg.type === "channel_status") {
+                if (msg.state === "busy") {
+                    if (!hasFloor) {
+                        pttBtn.classList.add("busy");
+                        statusText.innerText = "BUSY";
+                        statusText.style.color = "#ff9100";
+                        speakerDetail.innerText = (msg.speaker || "Mi dang") + " a tawng mek...";
+                    }
+                } else {
+                    pttBtn.classList.remove("busy");
+                    if (!hasFloor) {
+                        statusText.innerText = "READY";
+                        statusText.style.color = "#00e676";
+                        speakerDetail.innerText = "Channel a awl e";
+                    }
+                }
+            } else if (msg.type === "floor_granted") {
+                hasFloor = true;
+                pttBtn.classList.add("transmitting");
+                statusText.innerText = "TRANSMITTING";
+                statusText.style.color = "#ff1744";
+                speakerDetail.innerText = "I tawng a chhuak mek...";
+                if (navigator.vibrate) navigator.vibrate(80);
+                startStreamingMic();
+            } else if (msg.type === "floor_denied") {
+                hasFloor = false;
+                isHoldingButton = false;
+                statusText.innerText = "DENIED";
+                statusText.style.color = "#ff9100";
+                speakerDetail.innerText = "Channel a buai hrih!";
+                if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
+            } else if (msg.type === "user_count") {
+                userCountBadge.innerText = "Online: " + msg.count;
+            }
+        }
+
+        // Low latency PCM audio streaming
+        function startStreamingMic() {
+            if (!micStream || !audioCtx) return;
+            const source = audioCtx.createMediaStreamSource(micStream);
+            scriptProcessor = audioCtx.createScriptProcessor(2048, 1, 1);
+
+            scriptProcessor.onaudioprocess = (e) => {
+                if (!hasFloor) return;
+                const inputData = e.inputBuffer.getChannelData(0);
+                // Float32 to 16-bit PCM conversion
+                const pcm16 = new Int16Array(inputData.length);
+                for (let i = 0; i < inputData.length; i++) {
+                    let s = Math.max(-1, Math.min(1, inputData[i]));
+                    pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(pcm16.buffer);
+                }
+            };
+
+            source.connect(scriptProcessor);
+            scriptProcessor.connect(audioCtx.destination);
+        }
+
+        function stopStreamingMic() {
+            if (scriptProcessor) {
+                scriptProcessor.disconnect();
+                scriptProcessor = null;
+            }
+        }
+
+        // Play incoming PCM 16-bit Audio Buffer seamlessly
+        function playPcmAudio(arrayBuffer) {
+            if (!audioCtx) return;
+            const pcm16 = new Int16Array(arrayBuffer);
+            const float32 = new Float32Array(pcm16.length);
+            for (let i = 0; i < pcm16.length; i++) {
+                float32[i] = pcm16[i] / 32768.0;
+            }
+
+            const audioBuffer = audioCtx.createBuffer(1, float32.length, 16000);
+            audioBuffer.copyToChannel(float32, 0);
+
+            const bufferSource = audioCtx.createBufferSource();
+            bufferSource.buffer = audioBuffer;
+            bufferSource.connect(audioCtx.destination);
+
+            const currentTime = audioCtx.currentTime;
+            if (nextPlayTime < currentTime) {
+                nextPlayTime = currentTime;
+            }
+            bufferSource.start(nextPlayTime);
+            nextPlayTime += audioBuffer.duration;
+        }
+
+        // PTT Event Handlers
+        function onTouchStart(e) {
+            e.preventDefault();
+            if (isHoldingButton || pttBtn.classList.contains("busy")) return;
+            isHoldingButton = true;
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "request_floor" }));
+            }
+        }
+
+        function onTouchEnd(e) {
+            e.preventDefault();
+            if (!isHoldingButton) return;
+            isHoldingButton = false;
+            if (hasFloor) {
+                hasFloor = false;
+                pttBtn.classList.remove("transmitting");
+                stopStreamingMic();
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: "release_floor" }));
+                }
+            }
+        }
+
+        // Touch & Mouse bindings
+        pttBtn.addEventListener("touchstart", onTouchStart, { passive: false });
+        pttBtn.addEventListener("touchend", onTouchEnd, { passive: false });
+        pttBtn.addEventListener("mousedown", onTouchStart);
+        pttBtn.addEventListener("mouseup", onTouchEnd);
+        pttBtn.addEventListener("mouseleave", onTouchEnd);
+    </script>
+</body>
+</html>
